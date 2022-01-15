@@ -13,10 +13,16 @@ class SuperGenerator(nn.Module):
         self.super_conv1_ngf = ngf
         self.super_conv2_ngf = ngf
         self.super_conv3_ngf = ngf
+        self.super_conv1_ks = 7
+        self.super_conv2_ks = 7
+        self.super_conv3_ks = 7
 
         self.sample_conv1_ngf = None
         self.sample_conv2_ngf = None
         self.sample_conv3_ngf = None
+        self.sample_conv1_ks = None
+        self.sample_conv2_ks = None
+        self.sample_conv3_ks = None
 
         self.sample_config = None
 
@@ -28,9 +34,12 @@ class SuperGenerator(nn.Module):
         self.linear1 = SuperLinear(nz, self.super_conv1_ngf * 2 * self.resolution)
         self.l1 = nn.Sequential(self.linear1)
 
-        self.conv1 = SuperConv2d(self.super_conv1_ngf * 2, self.super_conv2_ngf * 2, 3, stride=1, padding=1, bias=False)
-        self.conv2 = SuperConv2d(self.super_conv2_ngf * 2, self.super_conv3_ngf * 2, 3, stride=1, padding=1, bias=False)
-        self.conv3 = SuperConv2d(self.super_conv3_ngf * 2, nc, 3, stride=1, padding=1, bias=False)
+        self.conv1 = SuperConv2d(self.super_conv1_ngf * 2, self.super_conv2_ngf * 2, self.super_conv1_ks, stride=1,
+                                 padding=self.super_conv1_ks//2, bias=False)
+        self.conv2 = SuperConv2d(self.super_conv2_ngf * 2, self.super_conv3_ngf * 2, self.super_conv2_ks, stride=1,
+                                 padding=self.super_conv2_ks//2, bias=False)
+        self.conv3 = SuperConv2d(self.super_conv3_ngf * 2, nc, self.super_conv3_ks, stride=1,
+                                 padding=self.super_conv3_ks//2, bias=False)
 
         self.bn1 = SuperBatchNorm2d(self.super_conv1_ngf * 2)
         self.bn2 = SuperBatchNorm2d(self.super_conv2_ngf * 2)
@@ -62,12 +71,15 @@ class SuperGenerator(nn.Module):
         self.sample_conv1_ngf = sample_config['conv1_sample_size']
         self.sample_conv2_ngf = sample_config['conv2_sample_size']
         self.sample_conv3_ngf = sample_config['conv3_sample_size']
+        self.sample_conv1_ks = sample_config['conv1_kernel_size']
+        self.sample_conv2_ks = sample_config['conv2_kernel_size']
+        self.sample_conv3_ks = sample_config['conv3_kernel_size']
 
         self.linear1.set_sample_config(self.nz, self.sample_conv1_ngf * 2 * self.resolution)
 
-        self.conv1.set_sample_config(self.sample_conv1_ngf * 2, self.sample_conv2_ngf * 2)
-        self.conv2.set_sample_config(self.sample_conv2_ngf * 2, self.sample_conv3_ngf * 2)
-        self.conv3.set_sample_config(self.sample_conv3_ngf * 2, self.nc)
+        self.conv1.set_sample_config(self.sample_conv1_ngf * 2, self.sample_conv2_ngf * 2, self.sample_conv1_ks)
+        self.conv2.set_sample_config(self.sample_conv2_ngf * 2, self.sample_conv3_ngf * 2, self.sample_conv1_ks)
+        self.conv3.set_sample_config(self.sample_conv3_ngf * 2, self.nc, self.sample_conv1_ks)
 
         self.bn1.set_sample_config(self.sample_conv1_ngf * 2)
         self.bn2.set_sample_config(self.sample_conv2_ngf * 2)

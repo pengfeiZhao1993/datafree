@@ -14,6 +14,7 @@ class SuperConv2d(nn.Conv2d):
         self.super_out_dim = super_out_dim
         self.sample_in_dim = None
         self.sample_out_dim = None
+        self.sample_ks = None
         self.samples = {}
         super().reset_parameters()
         self.profiling = False
@@ -23,14 +24,14 @@ class SuperConv2d(nn.Conv2d):
             return self._sample_parameters()
         return self.samples
 
-    def set_sample_config(self, sample_in_dim, sample_out_dim):
+    def set_sample_config(self, sample_in_dim, sample_out_dim, sample_ks):
         self.sample_in_dim = sample_in_dim
         self.sample_out_dim = sample_out_dim
-
+        self.sample_ks = sample_ks
         self._sample_parameters()
 
     def _sample_parameters(self):
-        self.samples['weight'] = sample_weight(self.weight, self.sample_in_dim, self.sample_out_dim)
+        self.samples['weight'] = sample_weight(self.weight, self.sample_in_dim, self.sample_out_dim, self.sample_ks)
         self.samples['bias'] = self.bias
         if self.bias is not None:
             self.samples['bias'] = sample_bias(self.bias, self.sample_out_dim)
@@ -38,7 +39,8 @@ class SuperConv2d(nn.Conv2d):
 
     def forward(self, x):
         self.sample_parameters()
-        return F.conv2d(x, self.samples['weight'], self.samples['bias'], self.stride, self.padding, self.dilation, self.groups)
+        return F.conv2d(x, self.samples['weight'], self.samples['bias'], self.stride, self.sample_ks//2,
+                        self.dilation, self.groups)
 
     def calc_sampled_param_num(self):
         assert 'weight' in self.samples.keys()
@@ -55,10 +57,16 @@ class SuperConv2d(nn.Conv2d):
         self.profiling = mode
 
 
-def sample_weight(weight, sample_in_dim, sample_out_dim):
+def sample_weight(weight, sample_in_dim, sample_out_dim, sample_ks):
 
     sample_weight = weight[:, :sample_in_dim]
     sample_weight = sample_weight[:sample_out_dim, :]
+
+    # sample kernel size
+    margin = (7 - sample_ks) // 2
+    sample_weight = sample_weight[:, :, margin:7-margin, :]
+    sample_weight = sample_weight[:, :, :, margin:7 - margin]
+
     return sample_weight
 
 
